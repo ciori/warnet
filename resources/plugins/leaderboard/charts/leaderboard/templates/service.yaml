@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mychart.fullname" . }}
+  labels:
+    app: {{ .Chart.Name }}
+    {{ if eq .Values.addAsCaddyWebsite true }}caddy-website: "true"{{ end }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ .Chart.Name }}

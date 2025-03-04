@@ -4,7 +4,6 @@ metadata:
   name: {{ .Values.podName }}
   labels:
     app: {{ .Chart.Name }}
-    {{ if eq .Values.addAsCaddyWebsite true }}caddy-website: "true"{{ end }}
 spec:
   restartPolicy: Never
   containers:

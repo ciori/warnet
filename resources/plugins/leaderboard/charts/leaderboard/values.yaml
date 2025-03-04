@@ -1,2 +1,4 @@
+nameOverride: ""
+fullnameOverride: ""
 podName: leaderboard-pod
 addAsCaddyWebsite: false

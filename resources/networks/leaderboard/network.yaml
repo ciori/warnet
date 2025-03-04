@@ -53,6 +53,9 @@ nodes:
     # ln:
     #   lnd: true
 
+caddy:
+  enabled: true
+
 plugins: # Each plugin section has a number of hooks available (preDeploy, postDeploy, etc)
   preDeploy: # For example, the preDeploy hook means it's plugin will run before all other deploy code
     leaderboard:
