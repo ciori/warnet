@@ -264,12 +264,50 @@ def deploy_caddy(directory: Path, debug: bool):
     if not network_file.get(name, {}).get("enabled", False):
         return
 
-    ###############################################################################################
-    # TODO Add all services with label to caddy
-    # ...
-    ###############################################################################################
+    # Get the names of all kubernetes Services that have the `caddy-website: "true"` label
+    cmd = "kubectl get service -l caddy-website='true' --no-headers --output name | cut -d '/' -f 2"
+    output, error = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    services = []
+    if error:
+        click.echo(f"Failed to get plugin websites to add to caddy: {error.decode()}")
+        click.echo("Continuing without adding plugin websites to caddy")
+    else:
+        click.echo("These are the following plugin websites found (as Kubernetes Service names):")
+        click.echo(output.decode())
+        services = output.decode().splitlines()
 
-    cmd = f"{HELM_COMMAND} {name} {CADDY_CHART} --namespace {namespace} --create-namespace"
+    # Duplicate the caddy chart values file
+    cmd = "cp values.yaml values_with_plugins.yaml"
+    output, error = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+
+    # Add services names to `caddyConfig` and `htmlConfig`
+    values_path = directory / CADDY_CHART / 'values.yaml'
+    with values_path.open() as file:
+        content = yaml.safe_load(file)
+        caddy_config = content['caddyConfig']
+        html_config = content['htmlConfig']
+    # update caddyConfig
+    lines = caddy_config.splitlines()
+    if lines:
+        for service in services:
+            parenthsis_open = "{"
+            parenthsis_close = "}"
+            lines.insert(-1, f"  handle_path /{service}/* {parenthsis_open}\n    reverse_proxy {service}:80\n  {parenthsis_close}\n")
+    caddy_config_updated = '\n'.join(lines)
+    # update htmlConfig
+    lines = html_config.splitlines()
+    if lines:
+        for service in services:
+            parenthsis_open = "{"
+            parenthsis_close = "}"
+            lines.insert(-3, f'\t<li><a href="/{service}/">{service}</a></li>')
+    html_config_updated = '\n'.join(lines)
+
+    click.echo(caddy_config_updated)
+    click.echo(html_config_updated)
+
+    cmd = f"{HELM_COMMAND} {name} {CADDY_CHART} --set caddyConfig='{caddy_config_updated}' --set htmlConfig='{html_config_updated}' --namespace {namespace} --create-namespace"
+    #cmd = f"{HELM_COMMAND} {name} {CADDY_CHART} --set caddyConfig='{caddy_config_updated}' --namespace {namespace} --create-namespace"
     if debug:
         cmd += " --debug"
 
